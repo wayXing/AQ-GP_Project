@@ -1,0 +1,9 @@
+This is a Python code for modeling Air-Quality in urban areas.
+This code is to be used in the Air-Quality project website at University of Utah.
+
+You can use the "AQ_DataQuery_API" to get data at time span and gps box that you want with a desired frequency as follows
+python AQ_DataQuery_API start-date end-date binning-frequency right-longitude bottom-latitude left-longitude top-latitude
+example:
+python AQ_DataQuery_API 2017-07-16 2017-07-21 12:00:00 -109.0411 36.9979 -114.0539 42.0013
+
+And the main API to be used for modeling is "AQ_API.py".
