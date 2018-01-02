@@ -2,7 +2,7 @@
 clc; clear; close all;
 display('Extracting the data...');
 
-% data = readCSV('../../data/inversion06-01To19-01.csv');
+% data = readCSV(data/inversion06-01To19-01.csv');
 load('data/invDataReady.mat');
 PMS_tr  = data{3};
 lat_tr  = data{1};
@@ -114,6 +114,8 @@ X1vec=reshape(X1,nPtsX*nPtsY*nts,1);
 X2vec=reshape(X2,nPtsX*nPtsY*nts,1);
 Tvec=reshape(T,nPtsX*nPtsY*nts,1);
 
+sigmaF0 = 11.1303;%std(PM2p5_tr(:));
+L0 = [1.2373, 10.2606];
 Xtest=[X1vec,X2vec,Tvec];
 
 Xtrain=[xh_tr(:),xv_tr(:),time_tr(:)];

@@ -32,30 +32,37 @@ def gradMNLL(x,y,L,sigmaF,sigmaN,optL,optSigmaF,optSigmaN,basisFnDeg,isARD,isSpa
         for j in range(nObs):
             K[i,j] = kerFunc(x[i,:],x[j,:],sigmaF,Lnew) + sigmaN**2 * delta[i,j]
             if isARD:
-                M = np.matrix(np.diag([Li**(-2) for Li in L]))
+#                M = np.matrix(np.diag([Li**(-2) for Li in L]))
                 L3 = [Li**(-3) for Li in L]
-                d = x[i,:]-x[j,:]
+                sum=0.0
+                for l in range(len(Lnew)):
+                    sum = sum + ((x[i, l]-x[j, l])**2)/(2*float(Lnew[l])**2)
+#                d = x[i,:]-x[j,:]
                 if isSpatIsot:
                     if optL:
-                        d2 = d[0,0:2]*d[0,0:2].T
-                        dKdL[i,j,0] = sigmaF**2 * np.exp(-(d*M*d.T)/2) * (d2*L3[0])
+#                        d2 = d[0,0:2]*d[0,0:2].T
+                        dKdL[i,j,0] = sigmaF**2 * np.exp(-sum) * (((x[i,0]-x[j,0])**(2)+(x[i,1]-x[j,1])**(2)) *L3[0])
                         dKdL[i,j,1] = dKdL[i,j,0];
                         for k in range(2,nL):
-                            dKdL[i,j,k] = sigmaF**2 * np.exp(-(d*M*d.T)/2) * ((d[0, k]**2)*L3[k])
+                            dKdL[i,j,k] = sigmaF**2 * np.exp(-sum) * (((x[i,k]-x[j,k])**2)*L3[k])
                     if optSigmaF:
-                        dKdSF[i,j] = 2*sigmaF * np.exp(-(d*M*d.T)/2)
+                        dKdSF[i,j] = 2*sigmaF * np.exp(-sum)
                     if optSigmaN:
                         dKdSN[i,j] = 2*sigmaN * delta[i,j]
                 else:
                     if optL:
-                        L3 = np.matrix(L3)
-                        dKdL[i,j,:] = sigmaF**2 * np.exp(-(d*M*d.T)/2) * (np.multiply(np.multiply(d, d),L3))
+#                        L3 = np.matrix(L3)
+                        for l in range(len(L3)):
+                            dKdL[i,j,l] = sigmaF**2 * np.exp(-sum) * (x[i,l]-x[j,l])**(2)*L3[l]
+#                        dKdL[i,j,:] = sigmaF**2 * np.exp(-sum) * (np.multiply(np.multiply(x[i,:]-x[j,:], x[i,:]-x[j,:]),L3))
                     if optSigmaF:
-                        dKdSF[i,j] = 2*sigmaF * np.exp(-(d*M*d.T)/2)
+                        dKdSF[i,j] = 2*sigmaF * np.exp(-sum)
                     if optSigmaN:
                         dKdSN[i,j] = 2*sigmaN * delta[i,j]
             else:
-                d2 = (x[i,:]-x[j,:])*(x[i,:]-x[j,:]).T
+                d2=0.0
+                for l in range(x.shape[1]):
+                    d2 = d2 + ((x[i, l]-x[j, l])**2)
                 if optL:
                     dKdL[i,j,0] = sigmaF**2 * np.exp(-d2/(2*L[0]**2)) * (d2/L[0]**3)
                 if optSigmaF:

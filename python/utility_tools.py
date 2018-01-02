@@ -6,11 +6,15 @@ from numpy.linalg import cholesky, det
 from scipy.linalg import lu  
 from scipy import interpolate
 from osgeo import gdal
+#import scipy.io as sio
 
 # Kernel Function definition
 def  kerFunc(x1,x2,sigmaF,L):
-    M = np.matrix(np.diag(np.array(L, dtype=float)**(-2)))
-    K = sigmaF**2 * np.exp((-(x1-x2)*M*(x1-x2).T)/2)
+    nL = len(L)
+    sum=0.0
+    for i in range(nL):
+        sum = sum + ((x1[0, i]-x2[0, i])**2)/(2*float(L[i])**2)
+    K = sigmaF**2 * np.exp(-sum)
     return K
 
 
@@ -85,8 +89,9 @@ def longLat2Elevation(long,lat):
     gridLongs = [initLong+dLong*i for i in range(nLong)]
     gridLats = [initLat+dLat*i for i in range(nLat)]
     f = interpolate.interp2d(gridLongs, gridLats, elevs, kind='linear')
-    endLong = initLong + nLong* dLong
-    endLat = initLat + nLat* dLat
+    endLong = initLong + (nLong-1)* dLong
+    endLat = initLat + (nLat-1)* dLat
+#    sio.savemat('elevationMap.mat', {'elevs':elevs,'gridLongs':gridLongs,'gridLats':gridLats,'initLong':initLong,'initLat':initLat,'endLong':endLong,'endLat':endLat})
     el = []
     for i in range(long.shape[0]):
         lo = long[i, 0]
