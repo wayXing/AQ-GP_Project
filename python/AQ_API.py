@@ -2,7 +2,7 @@ import numpy as np
 from GPR import gpRegression
 from utility_tools import longLat2Km, longLat2Elevation
 
-def AQGPR(xQuery, x_tr, y_tr, sigmaF0,L0,sigmaN,basisFnDeg, isTrain, isRegression=True):
+def AQGPR(xQuery, x_tr, y_tr, sigmaF0=8.3779,L0=[4.7273, 7.5732],sigmaN=5.81,basisFnDeg=1, isTrain=False, isRegression=True):
     assert(isTrain or isRegression),  "You should do either training, applying the regression or both!"
     assert(len(x_tr)==len(y_tr)),  "Number of the points in the independent variables must be equal to the number of the points in the measurments!"
     if isRegression:
@@ -42,18 +42,18 @@ def AQGPR(xQuery, x_tr, y_tr, sigmaF0,L0,sigmaN,basisFnDeg, isTrain, isRegressio
         optSigmaF = True
         optL      = True
         optSigmaN = False
-        [yPred, yVar, L, sigmaF, sigmaN] = gpRegression(x_tr,y_tr,xQuery,x_tr,y_tr,sigmaF0,optSigmaF,L0,optL,sigmaN,optSigmaN,basisFnDeg,isARD,isSpatIsot,learnRate,tol,maxIt,effOpt,center)
+        [yPred, yVar, L, sigmaF, sigmaN] = gpRegression(x_tr,y_tr,xQuery,x_tr,y_tr,sigmaF0,optSigmaF,L0,optL,sigmaN,optSigmaN,basisFnDeg,isARD,isSpatIsot,learnRate,tol,maxIt,effOpt,center, isRegression)
         return [yPred, yVar, L, sigmaF, sigmaN]
     elif isTrain:
         optSigmaF = True
         optL      = True
         optSigmaN = False
-        [L, sigmaF, sigmaN] = gpRegression(x_tr,y_tr,xQuery,x_tr,y_tr,sigmaF0,optSigmaF,L0,optL,sigmaN,optSigmaN,basisFnDeg,isARD,isSpatIsot,learnRate,tol,maxIt,effOpt,center)
+        [L, sigmaF, sigmaN] = gpRegression(x_tr,y_tr,xQuery,x_tr,y_tr,sigmaF0,optSigmaF,L0,optL,sigmaN,optSigmaN,basisFnDeg,isARD,isSpatIsot,learnRate,tol,maxIt,effOpt,center, isRegression)
         return [L, sigmaF, sigmaN]
     else:
         optSigmaF = False
         optL      = False
         optSigmaN = False        
-        [yPred, yVar] = gpRegression(x_tr,y_tr,xQuery,x_tr,y_tr,sigmaF,optSigmaF,L,optL,sigmaN,optSigmaN,basisFnDeg,isARD,isSpatIsot,learnRate,tol,maxIt,effOpt,center)
+        [yPred, yVar] = gpRegression(x_tr,y_tr,xQuery,x_tr,y_tr,sigmaF0,optSigmaF,L0,optL,sigmaN,optSigmaN,basisFnDeg,isARD,isSpatIsot,learnRate,tol,maxIt,effOpt,center, isRegression)
         return [yPred, yVar]
 
