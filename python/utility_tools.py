@@ -101,3 +101,17 @@ def longLat2Elevation(long,lat):
         el += [f(lo, la)[0]]
         
     return (np.matrix(el).T)/1000.
+
+def calibrate(x, models):
+    assert(np.shape(x)[1]==len(models)), 'You need to provide a model name for each column of the data matrix.'
+    xCalibrated = x.copy()
+    for i, model in enumerate(models):
+        if (model=='PMS5003'):
+            xCalibrated[:,i] = 0.7778*x[:,i]+2.6536
+            #xCalibrated[:,i] = -67.0241*log(-0.00985*x[:,i]+0.973658)
+        elif (model=='PMS1003'):
+            xCalibrated[:,i] = 0.5431*x[:,i]+1.0607
+        #   xCalibrated[:,i] = -54.9149*log(-0.00765*x[:,i]+0.981971)
+        elif (model=='H1.1'):
+            xCalibrated[:,i] = 0.4528*x[:,i]+3.526
+    return xCalibrated
