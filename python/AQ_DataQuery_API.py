@@ -13,7 +13,7 @@ TIMESTAMP = datetime.now().isoformat()
 
 
 def getConfig():
-    with open(sys.path[0] + 'config/config.json', 'r') as configfile:
+    with open(sys.path[0] + './config/config.json', 'r') as configfile:
         return json.loads(configfile.read())
     sys.stderr.write('%s\tProblem reading config file.\n' % TIMESTAMP)
     sys.exit(1)
@@ -26,7 +26,7 @@ def writeLoggingDataToFile(data):
         writer.writerow(data)
 
 
-def generateHourlyDates(start, end, delta):
+def generateDatePartitions(start, end, delta):
 
     result = []
     start += delta
@@ -36,6 +36,146 @@ def generateHourlyDates(start, end, delta):
     result.append(end.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
     return result
+
+def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLong=-114.053932189941, minLat=36.9979667663574, maxLong=-109.041069030762):
+    borderBox = {
+    'left':   minLong,
+    'right':  maxLong,
+    'bottom': minLat,
+    'top':    maxLat
+    }
+    # Reading the config file
+    config = getConfig()
+    # Purple Air client
+    pAirClient = InfluxDBClient(
+        config['influx_host'],
+        config['influx_port'],
+        config['influx_username'],
+        config['influx_pwd'],
+        config['purpleAir_db'],
+        ssl=True,
+        verify_ssl=True
+    )
+    # airU client
+    airUClient = InfluxDBClient(
+        config['influx_host'],
+        config['influx_port'],
+        config['influx_username'],
+        config['influx_pwd'],
+        config['airu_db'],
+        ssl=True,
+        verify_ssl=True
+    )    
+
+    # Creating the time stamps using the start date, end date, and the binning frequency
+    datePartitions = generateDatePartitions(startDate, endDate, timedelta(seconds=500*binFreq))
+    initialDate = startDate.strftime('%Y-%m-%dT%H:%M:%SZ')
+    finalDate   = endDate.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    # Querying the Purple Air sensor IDs with their coordinates and sensor model
+    result = pAirClient.query('SELECT "pm2.5 (ug/m^3)","ID","Longitude","Latitude","Sensor Model" FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= \'' + initialDate + '\' AND time <= \'' + finalDate + '\';')
+    result = list(result.get_points())
+    
+    pAirUniqueIDs = []
+    latitudes = []
+    longitudes = []
+    sensorModels = []
+    for row in result:
+        if row['Latitude'] is None or row['Longitude'] is None:
+            print "Skipped sensor with ID:" + row['ID'] + " -> Latitude/Longitude information not available!"
+            continue
+
+        if not((float(row['Longitude']) < borderBox['right']) and (float(row['Longitude']) > borderBox['left'])) or not((float(row['Latitude']) > borderBox['bottom']) and (float(row['Latitude']) < borderBox['top'])):
+            continue
+
+        if row['ID'] not in pAirUniqueIDs:
+            pAirUniqueIDs += [row['ID']]
+            latitudes += [row['Latitude']]
+            longitudes += [row['Longitude']]
+            if row['Sensor Model'] is None:
+                sensorModels += ['PMS5003']
+            else:
+                sensorModels += [row['Sensor Model'].split('+')[0]]
+
+    # Querying the airU sensor IDs with their coordinates and sensor model
+    result = airUClient.query('SELECT "PM2.5","ID","SensorModel" FROM ' + config['airu_pm25_measurement'] + ' WHERE time >= \'' + initialDate + '\' AND time <= \'' + finalDate + '\';')
+    result = list(result.get_points())
+    
+    # Querying the sensor IDs
+    tmpIDs = []
+    for row in result:
+        if row['ID'] not in tmpIDs:
+            tmpIDs += [row['ID']]
+
+    # Querying the coordinates and model of each sensor in the queried geographic area
+    airUUniqueIDs = []
+    for anID in tmpIDs:
+        last = airUClient.query('SELECT LAST(Latitude),"SensorModel" FROM ' \
+                 + config['airu_lat_measurement'] + ' WHERE ID=\'' + anID +'\' AND time >= \'' \
+                 + initialDate + '\' AND time <= \'' + finalDate + '\';')
+        last = list(last.get_points())[0]
+        senModel = last['SensorModel']
+        lat = last['last']
+
+        last = airUClient.query('SELECT LAST(Longitude),"SensorModel" FROM ' \
+                 + config['airu_long_measurement'] + ' WHERE ID=\'' + anID +'\' AND time >= \'' \
+                 + initialDate + '\' AND time <= \'' + finalDate + '\';')
+        last = list(last.get_points())[0]
+        long = last['last']
+        
+        if lat is None or long is None:
+            print "Skipped sensor with ID:" + anID + " -> Latitude/Longitude information not available!"
+            continue
+        if lat==0 or long==0:
+            print "Skipped sensor with ID:" + anID + " -> Latitude/Longitude has not been aquired!"
+            continue
+
+        if not((float(long) < borderBox['right']) and (float(long) > borderBox['left'])) or not((float(lat) > borderBox['bottom']) and (float(lat) < borderBox['top'])):
+            continue
+            
+        airUUniqueIDs += [anID]
+        latitudes += [lat]
+        longitudes += [long]
+        if senModel is None:
+            sensorModels += ['']
+        else:
+            sensorModels += [senModel.split('+')[0]]
+
+    for anEndDate in datePartitions:
+        data=[]
+        times=[]
+        for anID in pAirUniqueIDs:
+            #print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
+            result = pAirClient.query('SELECT MEAN("pm2.5 (ug/m^3)") FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= \'' + initialDate + '\' AND time < \'' + anEndDate  + '\' AND ID = \'' + anID + '\' group by time('+ str(binFreq)+ 's);')
+            result = list(result.get_points())
+            if anID==pAirUniqueIDs[0]:
+                for row in result:
+                    t = datetime.strptime(row['time'],'%Y-%m-%dT%H:%M:%SZ')-timedelta(hours=7)
+                    times += [t]
+                    data.append([row['mean']])
+            else:
+                for i in range(len(result)):
+                    data[i] += [result[i]['mean']]
+
+        for anID in airUUniqueIDs:
+            #print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
+            result = airUClient.query('SELECT MEAN("PM2.5") FROM ' \
+                     + config['airu_pm25_measurement'] + ' WHERE time >= \'' + initialDate + \
+                     '\' AND time < \'' + anEndDate  + '\' AND ID = \'' + anID + \
+                     '\' group by time('+ str(binFreq)+ 's);')
+            result = list(result.get_points())
+            if len(pAirUniqueIDs)==0 and anID==airUUniqueIDs[0]:
+                for row in result:
+                    t = datetime.strptime(row['time'],'%Y-%m-%dT%H:%M:%SZ')-timedelta(hours=7)
+                    times += [t]
+                    data.append([row['mean']])
+            else:
+                for i in range(len(result)):
+                    data[i] += [result[i]['mean']]
+        initialDate = anEndDate
+    
+    IDs = pAirUniqueIDs+airUUniqueIDs
+    return [data, longitudes, latitudes, times, sensorModels, IDs]
 
 
 if __name__ == "__main__":
@@ -90,143 +230,23 @@ if __name__ == "__main__":
     except OSError:
         pass
 
-    # Reading the config file
-    config = getConfig()
-    # Purple Air client
-    pAirClient = InfluxDBClient(
-        config['influx_host'],
-        config['influx_port'],
-        config['influx_username'],
-        config['influx_pwd'],
-        config['purpleAir_db'],
-        ssl=True,
-        verify_ssl=True
-    )
-    # airU client
-    airUClient = InfluxDBClient(
-        config['influx_host'],
-        config['influx_port'],
-        config['influx_username'],
-        config['influx_pwd'],
-        config['airu_db'],
-        ssl=True,
-        verify_ssl=True
-    )    
+    data = AQDataQuery(startDate, endDate, binFreq, utahBbox['top'], utahBbox['left'], utahBbox['bottom'], utahBbox['right'])
 
-    # Creating the time stamps using the start date, end date, and the binning frequency
-    hourlyDates = generateHourlyDates(startDate, endDate, timedelta(seconds=500*binFreq))
-    initialDate = startDate.strftime('%Y-%m-%dT%H:%M:%SZ')
-    finalDate   = endDate.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-    # Querying the Purple Air sensor IDs with their coordinates and sensor model
-    result = pAirClient.query('SELECT "pm2.5 (ug/m^3)","ID","Longitude","Latitude","Sensor Model" FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= \'' + initialDate + '\' AND time <= \'' + finalDate + '\';')
-    result = list(result.get_points())
-    
-    pAirUniqueIDs = []
-    latitudes = []
-    longitudes = []
-    sensorModels = []
-    for row in result:
-        if row['Latitude'] is None or row['Longitude'] is None:
-            print "Skipped sensor with ID:" + row['ID'] + " -> Latitude/Longitude information not available!"
-            continue
-
-        if not((float(row['Longitude']) < float(utahBbox['right'])) and (float(row['Longitude']) > float(utahBbox['left']))) or not((float(row['Latitude']) > float(utahBbox['bottom'])) and (float(row['Latitude']) < float(utahBbox['top']))):
-            continue
-
-        if row['ID'] not in pAirUniqueIDs:
-            pAirUniqueIDs += [row['ID']]
-            latitudes += [row['Latitude']]
-            longitudes += [row['Longitude']]
-            if row['Sensor Model'] is None:
-                sensorModels += ['PMS5003']
-            else:
-                sensorModels += [row['Sensor Model'].split('+')[0]]
-
-    # Querying the airU sensor IDs with their coordinates and sensor model
-    result = airUClient.query('SELECT "PM2.5","ID","SensorModel" FROM ' + config['airu_pm25_measurement'] + ' WHERE time >= \'' + initialDate + '\' AND time <= \'' + finalDate + '\';')
-    result = list(result.get_points())
-    
-    # Querying the sensor IDs
-    tmpIDs = []
-    for row in result:
-        if row['ID'] not in tmpIDs:
-            tmpIDs += [row['ID']]
-
-    # Querying the coordinates and model of each sensor in the queried geographic area
-    airUUniqueIDs = []
-    for anID in tmpIDs:
-        last = airUClient.query('SELECT LAST(Latitude),"SensorModel" FROM ' \
-                 + config['airu_lat_measurement'] + ' WHERE ID=\'' + anID +'\' AND time >= \'' \
-                 + initialDate + '\' AND time <= \'' + finalDate + '\';')
-        last = list(last.get_points())[0]
-        senModel = last['SensorModel']
-        lat = last['last']
-
-        last = airUClient.query('SELECT LAST(Longitude),"SensorModel" FROM ' \
-                 + config['airu_long_measurement'] + ' WHERE ID=\'' + anID +'\' AND time >= \'' \
-                 + initialDate + '\' AND time <= \'' + finalDate + '\';')
-        last = list(last.get_points())[0]
-        long = last['last']
-        
-        if lat is None or long is None:
-            print "Skipped sensor with ID:" + anID + " -> Latitude/Longitude information not available!"
-            continue
-        if lat==0 or long==0:
-            print "Skipped sensor with ID:" + anID + " -> Latitude/Longitude has not been aquired!"
-            continue
-
-        if not((float(long) < float(utahBbox['right'])) and (float(long) > float(utahBbox['left']))) or not((float(lat) > float(utahBbox['bottom'])) and (float(lat) < float(utahBbox['top']))):
-            continue
-            
-        airUUniqueIDs += [anID]
-        latitudes += [lat]
-        longitudes += [long]
-        if senModel is None:
-            sensorModels += ['']
-        else:
-            sensorModels += [senModel.split('+')[0]]
+    pm25 = data[0]
+    longitudes = data[1]
+    latitudes = data[2]
+    times = data[3]
+    sensorModels = data[4]
+    IDs = data[5]
 
     # Writing the Purple air and the airU sensor IDs with their coordinates and sensor models into the output file
-    writeLoggingDataToFile(sum([[''], ['ID'], pAirUniqueIDs, airUUniqueIDs],[]))
+    writeLoggingDataToFile(sum([[''], ['ID'], IDs],[]))
     writeLoggingDataToFile(sum([[''], ['Model'], sensorModels],[]))
     writeLoggingDataToFile(sum([[''], ['Latitude'], latitudes],[]))
     writeLoggingDataToFile(sum([['time'], ['Longitude'], longitudes],[]))
 
-    for anEndDate in hourlyDates:
-        print initialDate
-        print anEndDate
-        data=[]
-        for anID in pAirUniqueIDs:
-            #print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
-            result = pAirClient.query('SELECT MEAN("pm2.5 (ug/m^3)") FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= \'' + initialDate + '\' AND time < \'' + anEndDate  + '\' AND ID = \'' + anID + '\' group by time('+ str(binFreq)+ 's);')
-            result = list(result.get_points())
-            if anID==pAirUniqueIDs[0]:
-                for row in result:
-                    t = datetime.strptime(row['time'],'%Y-%m-%dT%H:%M:%SZ')-timedelta(hours=7)
-                    data.append([t.strftime('%Y-%m-%dT%H:%M:%SZ'),'',row['mean']])
-            else:
-                for i in range(len(result)):
-                    data[i] += [result[i]['mean']]
 
-        for anID in airUUniqueIDs:
-            #print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
-            result = airUClient.query('SELECT MEAN("PM2.5") FROM ' \
-                     + config['airu_pm25_measurement'] + ' WHERE time >= \'' + initialDate + \
-                     '\' AND time < \'' + anEndDate  + '\' AND ID = \'' + anID + \
-                     '\' group by time('+ str(binFreq)+ 's);')
-            result = list(result.get_points())
-            if len(pAirUniqueIDs)==0 and anID==airUUniqueIDs[0]:
-                for row in result:
-                    t = datetime.strptime(row['time'],'%Y-%m-%dT%H:%M:%SZ')-timedelta(hours=7)
-                    data.append([t.strftime('%Y-%m-%dT%H:%M:%SZ'),'',row['mean']])
-            else:
-                for i in range(len(result)):
-                    data[i] += [result[i]['mean']]
-
-        for t in data:
-            writeLoggingDataToFile(t)
-
-        initialDate = anEndDate
+    for ind, row in enumerate(pm25):
+        writeLoggingDataToFile(sum([[times[ind].strftime('%Y-%m-%dT%H:%M:%SZ')],[''],row], []))
 
     print 'DONE'
