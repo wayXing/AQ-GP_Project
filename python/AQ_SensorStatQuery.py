@@ -186,11 +186,22 @@ if __name__ == "__main__":
         result = list(result.get_points())
         nFail = 0;
         nOff  = 0;
-        for res in result:
+        for t, res in enumerate(result):
             if res['PM2.5'] is None:
                 nOff += 1
             elif res['PM2.5']<=0:
                 nFail += 1
+            elif t>0 and res['PM2.5']==result[t-1]['PM2.5']:
+                isFail = True
+                revt = t-2
+                while (revt>=0 and revt>t-10):
+                    if res['PM2.5']!=result[revt]['PM2.5']:
+                        isFail = False
+                        break
+                    revt -= 1
+                if isFail:
+                    nFail += 1
+  
         nTotal = len(result)
         nFine  = nTotal - nFail - nOff
         status = ('Offline' if (res['PM2.5'] is None) else ('Failed' if res['PM2.5']<=0 else 'Online'))
