@@ -90,8 +90,8 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
 
         if row['ID'] not in pAirUniqueIDs:
             pAirUniqueIDs += [row['ID']]
-            latitudes += [row['Latitude']]
-            longitudes += [row['Longitude']]
+            latitudes += [float(row['Latitude'])]
+            longitudes += [float(row['Longitude'])]
             if row['Sensor Model'] is None:
                 sensorModels += ['PMS5003']
             else:
@@ -134,8 +134,8 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
             continue
             
         airUUniqueIDs += [anID]
-        latitudes += [lat]
-        longitudes += [long]
+        latitudes += [float(lat)]
+        longitudes += [float(long)]
         if senModel is None:
             sensorModels += ['']
         else:

@@ -6,6 +6,7 @@ from numpy.linalg import cholesky, det
 from scipy.linalg import lu  
 from scipy import interpolate
 from osgeo import gdal
+from datetime import datetime
 #import scipy.io as sio
 
 # Kernel Function definition
@@ -115,3 +116,12 @@ def calibrate(x, models):
         elif (model=='H1.1'):
             xCalibrated[:,i] = 0.4528*x[:,i]+3.526
     return xCalibrated
+
+def datetime2Reltime(times, refTime):
+    relTimes = []
+    for t in times:
+        relTimes += [(t-refTime).total_seconds()/3600.0]
+    
+    return relTimes
+    
+    

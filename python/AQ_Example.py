@@ -4,6 +4,9 @@ import numpy as np
 #from NegLLGradient import gradMNLL
 import csv
 from AQ_API import AQGPR
+from AQ_DataQuery_API import AQDataQuery
+from datetime import datetime
+from utility_tools import calibrate, datetime2Reltime
 
 def readCSVFile(fileName):
     csvFile = open(fileName, "rb")
@@ -16,24 +19,46 @@ def readCSVFile(fileName):
     return output
     
 def main():
+    startDate = datetime(2018, 1, 6,  8, 0, 0)
+    endDate = datetime(2018, 1, 6,  16, 0, 0)
+
+    data_tr = AQDataQuery(startDate, endDate, 3600, 40.810476, -112.001349, 40.598850, -111.713403)
+    pm2p5_tr = data_tr[0]
+    long_tr = data_tr[1]
+    lat_tr  = data_tr[2]
+    time_tr = data_tr[3]
+    nLats = len(lat_tr)
+    nts=len(time_tr)
+    sensorModels = data_tr[4]
     
-    long_tr = readCSVFile('data/example_data/LONG_tr.csv')
-    lat_tr = readCSVFile('data/example_data/LAT_tr.csv')
-    time_tr = readCSVFile('data/example_data/TIME_tr.csv')
-    pm2p5_tr = readCSVFile('data/example_data/PM2p5_tr.csv')
+    pm2p5_tr = np.matrix(pm2p5_tr, dtype=float)
+    pm2p5_tr = calibrate(pm2p5_tr, sensorModels)
+    pm2p5_tr = pm2p5_tr.flatten().T
+    lat_tr = np.tile(np.matrix(lat_tr).T, [nts, 1])
+    long_tr = np.tile(np.matrix(long_tr).T, [nts, 1])
+    time_tr = datetime2Reltime(time_tr, min(time_tr))
+    time_tr = np.repeat(np.matrix(time_tr).T,nLats,axis=0)
+    
+#    long_tr = readCSVFile('data/example_data/LONG_tr.csv')
+#    lat_tr = readCSVFile('data/example_data/LAT_tr.csv')
+#    time_tr = readCSVFile('data/example_data/TIME_tr.csv')
+#    pm2p5_tr = readCSVFile('data/example_data/PM2p5_tr.csv')
     long_Q = readCSVFile('data/example_data/LONG_Q.csv')
     lat_Q = readCSVFile('data/example_data/LAT_Q.csv')
     time_Q = readCSVFile('data/example_data/TIME_Q.csv')
 
-    long_tr = np.matrix(long_tr)
-    lat_tr = np.matrix(lat_tr)
-    time_tr = np.matrix(time_tr)
+    
+#    long_tr = np.matrix(long_tr)
+#    lat_tr = np.matrix(lat_tr)
+#    time_tr = np.matrix(time_tr)
     long_Q = np.matrix(long_Q)
     lat_Q = np.matrix(lat_Q)
     time_Q = np.matrix(time_Q)
-    
+    long_Q = long_Q[0:160, 0]
+    lat_Q = lat_Q[0:160, 0]
+    time_Q = time_Q[0:160, 0]
     # This would be y_tr of the AQGPR function
-    pm2p5_tr = np.matrix(pm2p5_tr)
+#    pm2p5_tr = np.matrix(pm2p5_tr)
     
     # This would be the x_tr of the AQGPR function
     x_tr = np.concatenate((lat_tr, long_tr, time_tr), axis=1)
