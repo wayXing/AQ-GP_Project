@@ -9,6 +9,7 @@ from datetime import timedelta
 from influxdb import InfluxDBClient
 
 
+
 TIMESTAMP = datetime.now().isoformat()
 
 
@@ -36,6 +37,7 @@ def generateDatePartitions(start, end, delta):
     result.append(end.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
     return result
+
 
 def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLong=-114.053932189941, minLat=36.9979667663574, maxLong=-109.041069030762):
     borderBox = {
@@ -141,9 +143,10 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
         else:
             sensorModels += [senModel.split('+')[0]]
 
+    nres = 0
+    data=[]
+    times=[]
     for anEndDate in datePartitions:
-        data=[]
-        times=[]
         for anID in pAirUniqueIDs:
             #print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
             result = pAirClient.query('SELECT MEAN("pm2.5 (ug/m^3)") FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= \'' + initialDate + '\' AND time < \'' + anEndDate  + '\' AND ID = \'' + anID + '\' group by time('+ str(binFreq)+ 's);')
@@ -155,7 +158,7 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
                     data.append([row['mean']])
             else:
                 for i in range(len(result)):
-                    data[i] += [result[i]['mean']]
+                    data[i+nres] += [result[i]['mean']]
 
         for anID in airUUniqueIDs:
             #print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
@@ -171,8 +174,9 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
                     data.append([row['mean']])
             else:
                 for i in range(len(result)):
-                    data[i] += [result[i]['mean']]
+                    data[i+nres] += [result[i]['mean']]
         initialDate = anEndDate
+        nres+=len(result)
     
     IDs = pAirUniqueIDs+airUUniqueIDs
     return [data, longitudes, latitudes, times, sensorModels, IDs]
