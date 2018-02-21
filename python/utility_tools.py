@@ -1,12 +1,11 @@
 import numpy as np
 import os.path
 import elevation
-from math import factorial
+from math import factorial, isnan
 from numpy.linalg import cholesky, det
 from scipy.linalg import lu  
 from scipy import interpolate
 from osgeo import gdal
-from datetime import datetime
 #import scipy.io as sio
 
 # Kernel Function definition
@@ -103,6 +102,7 @@ def longLat2Elevation(long,lat):
         
     return (np.matrix(el).T)/1000.
 
+# Calibrates sensor readings with respect to their model    
 def calibrate(x, models):
     assert(np.shape(x)[1]==len(models)), 'You need to provide a model name for each column of the data matrix.'
     xCalibrated = x.copy()
@@ -117,6 +117,7 @@ def calibrate(x, models):
             xCalibrated[:,i] = 0.4528*x[:,i]+3.526
     return xCalibrated
 
+# Converts datetime absolute format to a relative time format    
 def datetime2Reltime(times, refTime):
     relTimes = []
     for t in times:
@@ -124,4 +125,42 @@ def datetime2Reltime(times, refTime):
     
     return relTimes
     
-    
+def findMissings(data):
+    nt = len(data)
+    nID = len(data[0])
+    for t in range(nt):
+        for id in range(nID):
+            if (data[t][id]<=0) or (data[t][id]>300):
+                data[t][id] = None
+
+    for j in range(nID):
+        i =0;
+        while i<nt:
+            if data[i][j] is None and i==0:
+                while i<nt and data[i][j] is None:
+                    i+=1;
+                    continue
+            elif data[i][j] is None:
+                z=i+1
+                while z<nt and data[z][j] is None:
+                    z=z+1
+                if z<nt:
+                    for k in range(i, z):
+                        data[k][j] = data[i-1][j] + (k-(i-1))*(data[z][j]-data[i-1][j])/(z-(i-1));
+                    i = z
+                    continue
+                else:
+                    break;
+            i += 1
+
+    return data
+
+def removeMissings(x_data, y_data):
+    nPts = np.shape(y_data)[0]
+    toRmv = []
+    for i in range(nPts):
+        if isnan(y_data[i, 0]):
+            toRmv += [i]
+    y_data = np.delete(y_data, toRmv, 0)
+    x_data = np.delete(x_data, toRmv, 0)
+    return x_data, y_data

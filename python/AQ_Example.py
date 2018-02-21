@@ -6,7 +6,7 @@ import csv
 from AQ_API import AQGPR
 from AQ_DataQuery_API import AQDataQuery
 from datetime import datetime
-from utility_tools import calibrate, datetime2Reltime
+from utility_tools import calibrate, datetime2Reltime, findMissings, removeMissings
 
 def readCSVFile(fileName):
     csvFile = open(fileName, "rb")
@@ -20,9 +20,9 @@ def readCSVFile(fileName):
     
 def main():
     startDate = datetime(2018, 1, 6,  8, 0, 0)
-    endDate = datetime(2018, 1, 6,  16, 0, 0)
+    endDate = datetime(2018, 1, 10,  16, 0, 0)
 
-    data_tr = AQDataQuery(startDate, endDate, 3600, 40.810476, -112.001349, 40.598850, -111.713403)
+    data_tr = AQDataQuery(startDate, endDate, 3600*6, 40.810476, -112.001349, 40.598850, -111.713403)
     pm2p5_tr = data_tr[0]
     long_tr = data_tr[1]
     lat_tr  = data_tr[2]
@@ -31,6 +31,7 @@ def main():
     nts=len(time_tr)
     sensorModels = data_tr[4]
     
+    pm2p5_tr = findMissings(pm2p5_tr)
     pm2p5_tr = np.matrix(pm2p5_tr, dtype=float)
     pm2p5_tr = calibrate(pm2p5_tr, sensorModels)
     pm2p5_tr = pm2p5_tr.flatten().T
@@ -62,6 +63,7 @@ def main():
     
     # This would be the x_tr of the AQGPR function
     x_tr = np.concatenate((lat_tr, long_tr, time_tr), axis=1)
+    x_tr, pm2p5_tr = removeMissings(x_tr, pm2p5_tr)
     # This would be the xQuery of the AQGPR function
     x_Q = np.concatenate((lat_Q, long_Q, time_Q), axis=1)
     
