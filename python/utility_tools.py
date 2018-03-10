@@ -8,6 +8,7 @@ from scipy import interpolate
 from osgeo import gdal
 #import scipy.io as sio
 
+
 # Kernel Function definition
 def  kerFunc(x1,x2,sigmaF,L):
     nL = len(L)
@@ -29,6 +30,7 @@ def basisTerms(x,remDeg,res,terms):
             terms = basisTerms(x[0, 1:],remDeg-i,new_res,terms)
         return terms        
 
+
 # This calculates number of possible combinations of k objects chosen from n objects or n-choose-k
 def nchoosek(n, k):
     return factorial(n) / factorial(k) / factorial(n - k)
@@ -49,6 +51,7 @@ def logdet(M, isPosDef=False):
         du = U.diagonal()
         c = det(P) * np.prod(np.sign(du))
         return np.log(c) + np.sum(np.log(abs(du)))
+
 
 def longLat2Km(long,lat, longOrigin, latOrigin):
     long = np.matrix(long)
@@ -102,6 +105,7 @@ def longLat2Elevation(long,lat):
         
     return (np.matrix(el).T)/1000.
 
+
 # Calibrates sensor readings with respect to their model    
 def calibrate(x, models):
     assert(np.shape(x)[1]==len(models)), 'You need to provide a model name for each column of the data matrix.'
@@ -117,6 +121,7 @@ def calibrate(x, models):
             xCalibrated[:,i] = 0.4528*x[:,i]+3.526
     return xCalibrated
 
+
 # Converts datetime absolute format to a relative time format    
 def datetime2Reltime(times, refTime):
     relTimes = []
@@ -125,6 +130,8 @@ def datetime2Reltime(times, refTime):
     
     return relTimes
     
+    
+# Finds the missing values and marks interpolates the middle points and marks the rest as None    
 def findMissings(data):
     nt = len(data)
     nID = len(data[0])
@@ -155,6 +162,8 @@ def findMissings(data):
 
     return data
 
+
+# Removes the Nan values from the data and its correspondent points
 def removeMissings(x_data, y_data):
     nPts = np.shape(y_data)[0]
     toRmv = []
