@@ -6,8 +6,8 @@ import sys
 from datetime import datetime
 from datetime import timedelta
 
-from influxdb import InfluxDBClient
 
+from influxdb import InfluxDBClient
 
 
 TIMESTAMP = datetime.now().isoformat()
@@ -45,6 +45,7 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
                  'bottom': minLat,
                  'top':    maxLat
                  }
+
     # Reading the config file
     config = getConfig()
     # Purple Air client
@@ -69,8 +70,13 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
     )    
 
     # Creating the time stamps using the start date, end date, and the binning frequency
-    datePartitions = generateDatePartitions(startDate, endDate, timedelta(seconds = 500 * binFreq))
-
+    tPartsNT = 500
+    datePartitions = generateDatePartitions(startDate, endDate, timedelta(seconds = tPartsNT * binFreq))
+    nt = (len(datePartitions)-1)*500 + \
+    (datetime.strptime(datePartitions[-1],'%Y-%m-%dT%H:%M:%SZ')-\
+    datetime.strptime(datePartitions[-2],'%Y-%m-%dT%H:%M:%SZ')).total_seconds()/binFreq
+    nt = int(nt)
+    
     pAirUniqueIDs = []
     latitudes = []
     longitudes = []
@@ -155,13 +161,26 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
             result = list(result.get_points())
 
             if anID == pAirUniqueIDs[0]:
-                for row in result:
-                    t = datetime.strptime(row['time'], '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
-                    times += [t]
-                    data.append([row['mean']])
+                if not result:
+                    for i in range(min(tPartsNT, nt-nres)):
+                        data.append([None])
+                    t = datetime.strptime(initialDate, '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
+                    et = datetime.strptime(anEndDate, '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
+                    while(t<et):
+                        times += [t]
+                        t += timedelta(seconds=binFreq)
+                else:
+                    for row in result:
+                        t = datetime.strptime(row['time'], '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
+                        times += [t]
+                        data.append([row['mean']])
             else:
-                for i in range(len(result)):
-                    data[i + nres] += [result[i]['mean']]
+                if not result:
+                    for i in range(min(tPartsNT, nt-nres)):
+                        data[i+nres] += [None]
+                else:
+                    for i in range(len(result)):
+                        data[i + nres] += [result[i]['mean']]
 
         for anID in airUUniqueIDs:
             # print 'SELECT * FROM airQuality WHERE "Sensor Source" = \'Purple Air\' AND time >= ' + initialDate + ' AND time <= ' + anEndDate + ';'
@@ -171,16 +190,29 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
                      '\' group by time('+ str(binFreq)+ 's);')
             result = list(result.get_points())
             if len(pAirUniqueIDs) == 0 and anID == airUUniqueIDs[0]:
-                for row in result:
-                    t = datetime.strptime(row['time'], '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
-                    times += [t]
-                    data.append([row['mean']])
+                if not result:
+                    for i in range(min(tPartsNT, nt-nres)):
+                        data.append([None])
+                    t = datetime.strptime(initialDate, '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
+                    et = datetime.strptime(anEndDate, '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
+                    while(t<et):
+                        times += [t]
+                        t += timedelta(seconds=binFreq)
+                else:
+                    for row in result:
+                        t = datetime.strptime(row['time'], '%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=7)
+                        times += [t]
+                        data.append([row['mean']])
             else:
-                for i in range(len(result)):
-                    data[i + nres] += [result[i]['mean']]
+                if not result:
+                    for i in range(min(tPartsNT, nt-nres)):
+                        data[i+nres] += [None]
+                else:
+                    for i in range(len(result)):
+                        data[i + nres] += [result[i]['mean']]
 
         initialDate = anEndDate
-        nres += len(result)
+        nres += tPartsNT
 
     IDs = pAirUniqueIDs + airUUniqueIDs
 
