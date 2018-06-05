@@ -30,7 +30,7 @@ def gradDescent(Fun,theta0,optList,tol,gamma0,maxIt,plotObj):
 #        pl.show()
 
     thetaConverged = False
-    while err>tol and it<=maxIt:# and (not thetaConverged):
+    while err>tol and it<=maxIt and (not thetaConverged):
         it += 1
         gamma = gamma0
         #grad  = gradFun(theta.tolist()[0])

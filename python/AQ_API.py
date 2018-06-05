@@ -2,7 +2,7 @@ import numpy as np
 from GPR import gpRegression
 from utility_tools import longLat2Km, longLat2Elevation
 
-def AQGPR(xQuery, x_tr, y_tr, sigmaF0=8.3779,L0=[4.7273, 7.5732],sigmaN=5.81,basisFnDeg=1, isTrain=False, isRegression=True):
+def AQGPR(xQuery, x_tr, y_tr, sigmaF0=10,L0=[4.3, 4.0],sigmaN=4.2,basisFnDeg=1, isTrain=False, isRegression=True):
     assert(isTrain or isRegression),  "You should do either training, applying the regression or both!"
     assert(len(x_tr)==len(y_tr)),  "Number of the points in the independent variables must be equal to the number of the points in the measurments!"
     if isRegression:

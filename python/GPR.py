@@ -13,7 +13,7 @@ def gpRegression(x,y,xQuery,x_tr,y_tr,sigmaF,optSigmaF,L,optL,sigmaN,optSigmaN,b
     assert(x_tr.shape[0]>=x_tr.shape[1]),'The independent variables should be in the columns, and the observations in the rows'
     assert(xQuery.shape[0]>=xQuery.shape[1]),'The independent variables should be in the columns, and the tests in the rows'
 
-    kerType = 'SqExp'
+    kerType = 'Exp'
     nL = len(L);
     # conditioning related to ARD mode and/or spatially isotropic case
     if isARD:

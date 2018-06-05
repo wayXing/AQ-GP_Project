@@ -70,10 +70,10 @@ def main():
     # we usually initialize the sigmaF0 for training as the standard deviation of the sensor measurements
     #sigmaF0=np.std(pm2p5_tr, ddof=1)
     # If we know the sigmaF from previous training we use the found parameter
-    sigmaF0 = 8.3779
-    L0 = [4.7273, 7.5732]
+    sigmaF0 = 10
+    L0 = [4.3, 4]
     # This is the noise variance and is being calculated from the sensor calibration data. This is hard coded in the AQGPR as well
-    sigmaN = 5.81
+    sigmaN = 4.2
     # This is the degree of the mean function used in the regression, we would like to have it equal to 1 for now
     basisFnDeg=1
     
