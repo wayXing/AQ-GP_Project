@@ -72,9 +72,13 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
     # Creating the time stamps using the start date, end date, and the binning frequency
     tPartsNT = 500
     datePartitions = generateDatePartitions(startDate, endDate, timedelta(seconds = tPartsNT * binFreq))
-    nt = (len(datePartitions)-1)*500 + \
-    (datetime.strptime(datePartitions[-1],'%Y-%m-%dT%H:%M:%SZ')-\
-    datetime.strptime(datePartitions[-2],'%Y-%m-%dT%H:%M:%SZ')).total_seconds()/binFreq
+    
+    if len(datePartitions)>1:
+        nt = (len(datePartitions)-1)*500 + \
+        (datetime.strptime(datePartitions[-1],'%Y-%m-%dT%H:%M:%SZ')-\
+        datetime.strptime(datePartitions[-2],'%Y-%m-%dT%H:%M:%SZ')).total_seconds()/binFreq
+    else:
+        nt = (datetime.strptime(datePartitions[-1],'%Y-%m-%dT%H:%M:%SZ')-startDate).total_seconds()/binFreq
     nt = int(nt)
     
     pAirUniqueIDs = []
