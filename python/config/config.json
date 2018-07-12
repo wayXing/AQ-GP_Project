@@ -1,0 +1,11 @@
+{
+  "influx_host": "air.eng.utah.edu",
+  "influx_port": 8086,
+  "influx_username": "wxing",
+  "influx_pwd": "C4Mvw5RQsXxY6aYF",
+  "airu_db": "airU",
+  "airu_pm25_measurement": "pm25",
+  "airu_lat_measurement": "latitude",
+  "airu_long_measurement": "longitude",
+  "purpleAir_db": "defaultdb"
+}
