@@ -7,7 +7,9 @@ maxLat = 40.810476;
 minLong = -112.001349;
 maxLong =  -111.713403;
 
-[tr_lat,tr_long,tr_time,tr_pm25] = readQueryFile('data/queriedData.csv');
+
+
+[tr_lat,tr_long,tr_time,tr_pm25] = readQueryFile('../python/queriedData.csv');
 tr_lat = [tr_lat(1:30);tr_lat(32:end)];
 tr_long = [tr_long(1:30);tr_long(32:end)];
 tr_pm25 = [tr_pm25(:,1:30),tr_pm25(:,32:end)];

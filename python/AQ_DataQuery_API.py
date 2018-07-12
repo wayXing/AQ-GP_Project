@@ -14,7 +14,7 @@ TIMESTAMP = datetime.now().isoformat()
 
 
 def getConfig():
-    with open(sys.path[0] + './config/config.json', 'r') as configfile:
+    with open(sys.path[0] + '/config/config.json', 'r') as configfile:
         return json.loads(configfile.read())
     sys.stderr.write('%s\tProblem reading config file.\n' % TIMESTAMP)
     sys.exit(1)
@@ -67,12 +67,12 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
         config['airu_db'],
         ssl=True,
         verify_ssl=True
-    )    
+    )
 
     # Creating the time stamps using the start date, end date, and the binning frequency
     tPartsNT = 500
     datePartitions = generateDatePartitions(startDate, endDate, timedelta(seconds = tPartsNT * binFreq))
-    
+
     if len(datePartitions)>1:
         nt = (len(datePartitions)-1)*500 + \
         (datetime.strptime(datePartitions[-1],'%Y-%m-%dT%H:%M:%SZ')-\
@@ -80,7 +80,7 @@ def AQDataQuery(startDate, endDate, binFreq=3600, maxLat=42.0013885498047, minLo
     else:
         nt = (datetime.strptime(datePartitions[-1],'%Y-%m-%dT%H:%M:%SZ')-startDate).total_seconds()/binFreq
     nt = int(nt)
-    
+
     pAirUniqueIDs = []
     latitudes = []
     longitudes = []
